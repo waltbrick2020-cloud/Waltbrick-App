@@ -290,7 +290,6 @@
         updateDashboardView();
     }
 
-    // Funktion zum Rendern der Tabelle (wird auch bei der Suche verwendet)
     function renderTable(ordersToRender) {
         const tbody = document.getElementById('orderList');
         tbody.innerHTML = '';
@@ -330,7 +329,6 @@
         });
     }
 
-    // Live-Suchfilter für die Tabelle
     window.filterOrderTable = function() {
         const query = document.getElementById('searchInput').value.toLowerCase();
         const filtered = currentOrders.filter(order => {
@@ -475,7 +473,7 @@
     window.saveEditedOrder = async function() {
         const id = document.getElementById('editOrderId').value;
         const datum = document.getElementById('editOrderDate').value;
-        const bestellnummer = document.getElementById('editOrderNumber'].value;
+        const bestellnummer = document.getElementById('editOrderNumber').value;
         const umsatz = parseFloat(document.getElementById('editAmount').value);
         const plattform = document.getElementById('editPlatform').value;
         const notizen = document.getElementById('editNotes').value;

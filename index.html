@@ -318,17 +318,23 @@
         if (!order) return;
 
         document.getElementById('editOrderId').value = order.id;
-        document.getElementById('editOrderDate').value = order.datum ? order.datum.split('T')[0] : '';
+        
+        // Datum sauber extrahieren (nimmt immer den Teil vor dem 'T')
+        if (order.datum) {
+            document.getElementById('editOrderDate').value = order.datum.split('T')[0].split(' ')[0];
+        } else {
+            document.getElementById('editOrderDate').value = '';
+        }
+
         document.getElementById('editOrderNumber').value = order.bestellnummer || '';
         document.getElementById('editAmount').value = order.umsatz || '';
         document.getElementById('editPlatform').value = order.plattform || 'BrickLink';
-        document.getElementById('editNotes').value = order.notizen || '';
+        
+        // Notizen auslesen (egal ob Spalte notizen oder notiz heißt)
+        document.getElementById('editNotes').value = order.notizen || order.notiz || '';
+        
         document.getElementById('editFile').value = '';
         document.getElementById('editModal').style.display = 'block';
-    }
-
-    function closeEditModal() {
-        document.getElementById('editModal').style.display = 'none';
     }
 
     async function saveEditedOrder() {
@@ -343,15 +349,19 @@
         const editFileInput = document.getElementById('editFile').files[0];
 
         try {
+            // Wir senden sowohl 'notizen' als auch 'notiz' mit, damit es in deiner DB auf jeden Fall ankommt
+            const updateData = { 
+                datum: datum, 
+                bestellnummer: bestellnummer, 
+                umsatz: umsatz, 
+                plattform: plattform, 
+                notizen: notizen,
+                notiz: notizen 
+            };
+
             const { error } = await db
                 .from('bestellungen')
-                .update({ 
-                    datum: datum, 
-                    bestellnummer: bestellnummer, 
-                    umsatz: umsatz, 
-                    plattform: plattform, 
-                    notizen: notizen 
-                })
+                .update(updateData)
                 .eq('id', id);
 
             if (error) throw error;

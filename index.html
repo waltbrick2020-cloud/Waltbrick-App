@@ -17,6 +17,8 @@
         .btn-small { padding: 5px 10px; font-size: 13px; width: auto; display: inline-block; }
         .btn-edit { background-color: #28a745; }
         .btn-edit:hover { background-color: #218838; }
+        .btn-danger { background-color: #dc3545; }
+        .btn-danger:hover { background-color: #c82333; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
         img.thumb { max-width: 45px; max-height: 45px; border-radius: 4px; cursor: pointer; object-fit: cover; }
@@ -28,7 +30,8 @@
         .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 8px; max-width: 500px; position: relative; }
         .close-btn { position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; font-weight: bold; }
         
-        /* Navigation & Dashboard Styles */
+        /* Header & Nav Styles */
+        .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .app-nav { display: flex; gap: 10px; margin-bottom: 20px; }
         .app-nav button { width: auto; flex: 1; }
         .section-view { display: none; }
@@ -43,13 +46,21 @@
 
 <div id="login-screen">
     <h2>Geschützter Bereich</h2>
-    <p>Bitte gib die gemeinsame PIN ein:</p>
+    <p>Bitte gib die gemeinsame PIN ein oder nutze deinen Fingerabdruck:</p>
     <input type="password" id="pinInput" placeholder="PIN eingeben...">
-    <button type="button" id="unlockBtn" style="max-width: 200px; margin: auto;">Entsperren</button>
+    <button type="button" id="unlockBtn" style="max-width: 200px; margin: auto; margin-bottom: 10px;">Entsperren</button>
+    <br>
+    <button type="button" id="bioBtn" class="btn-edit" style="max-width: 200px; margin: auto; display: none;">Mit Fingerabdruck / FaceID</button>
     <p id="pinError" style="color: red; margin-top: 10px;"></p>
 </div>
 
 <div id="app-content">
+    <!-- Header mit Logout-Button -->
+    <div class="app-header">
+        <h2 style="margin: 0;">Waltbrick Dashboard</h2>
+        <button type="button" class="btn-small btn-danger" onclick="logout()">Gesperrt mod. verlassen</button>
+    </div>
+
     <!-- Menü zum Umschalten -->
     <div class="app-nav">
         <button type="button" onclick="switchView('orders')" id="btnViewOrders">Bestellungen & Erfassung</button>
@@ -210,15 +221,95 @@
 
     document.getElementById('orderDate').valueAsDate = new Date();
 
+    // Prüfen, ob das Gerät Biometrie (Fingerabdruck / FaceID) unterstützt
+    window.addEventListener('DOMContentLoaded', async () => {
+        // Prüfen ob bereits eingeloggt gespeichert
+        if (localStorage.getItem('waltbrick_logged_in') === 'true') {
+            grantAccess();
+            return;
+        }
+
+        // Biometrie-Check (WebAuthn)
+        if (window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
+            const bioBtn = document.getElementById('bioBtn');
+            bioBtn.style.display = 'block';
+            bioBtn.addEventListener('click', handleBiometricLogin);
+        }
+    });
+
+    function grantAccess() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app-content').style.display = 'block';
+        localStorage.setItem('waltbrick_logged_in', 'true');
+        loadData();
+    }
+
     function checkPin() {
         const enteredPin = document.getElementById('pinInput').value;
         if (enteredPin === GEHEIME_PIN) {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('app-content').style.display = 'block';
-            loadData(); 
+            grantAccess();
         } else {
             document.getElementById('pinError').textContent = 'Falsche PIN!';
         }
+    }
+
+    async function handleBiometricLogin() {
+        try {
+            // Erstellt eine einfache lokale biometrische Abfrage (z.B. TouchID / Windows Hello / Android Biometric)
+            const publicKey = {
+                challenge: new Uint8Array([1,2,3,4,5,6,7,8]),
+                rp: { name: "Waltbrick App" },
+                user: {
+                    id: new Uint8Array([1]),
+                    name: "admin",
+                    displayName: "Admin"
+                },
+                pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                timeout: 60000,
+                authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
+            };
+
+            // Bei bereits registriertem Gerät nutzen wir get(), beim ersten Mal create() oder Fallback
+            // Für eine reibungslose lokale Nutzung reicht oft ein Assertion-Versuch oder wir nutzen die WebAuthn API:
+            const credential = await navigator.credentials.get({
+                publicKey: {
+                    challenge: new Uint8Array([1,2,3,4,5,6,7,8]),
+                    timeout: 60000,
+                    userVerification: "required"
+                }
+            });
+
+            if (credential) {
+                grantAccess();
+            }
+        } catch (err) {
+            // Falls noch kein Fingerabdruck registriert wurde, registrieren wir einen lokalen "Schlüssel" für diese Site:
+            try {
+                const reg = await navigator.credentials.create({
+                    publicKey: {
+                        challenge: new Uint8Array([1,2,3,4,5,6,7,8]),
+                        rp: { name: "Waltbrick App" },
+                        user: {
+                            id: new Uint8Array([1]),
+                            name: "admin",
+                            displayName: "Admin"
+                        },
+                        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
+                        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
+                    }
+                });
+                if (reg) {
+                    grantAccess();
+                }
+            } catch (innerErr) {
+                document.getElementById('pinError').textContent = 'Biometrie fehlgeschlagen. Bitte PIN nutzen.';
+            }
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('waltbrick_logged_in');
+        location.reload();
     }
 
     document.getElementById('unlockBtn').addEventListener('click', checkPin);

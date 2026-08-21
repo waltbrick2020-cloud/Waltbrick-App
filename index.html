@@ -107,6 +107,9 @@
 
         <div class="card">
             <h2>Bestellungen</h2>
+            <div class="form-group" style="margin-bottom: 15px;">
+                <input type="text" id="searchInput" placeholder="Suche nach Bestellnummer, Notiz, Plattform..." onkeyup="filterOrderTable()">
+            </div>
             <div style="overflow-x:auto;">
                 <table>
                     <thead>
@@ -223,7 +226,6 @@
         if (e.key === 'Enter') checkPin();
     });
 
-    // Umschalten zwischen den Ansichten
     window.switchView = function(viewName) {
         const btnOrders = document.getElementById('btnViewOrders');
         const btnDashboard = document.getElementById('btnViewDashboard');
@@ -261,40 +263,50 @@
     async function loadData() {
         const { data: orders, error: orderErr } = await db.from('bestellungen').select('*').order('datum', { ascending: false });
         const { data: files } = await db.from('belege').select('*');
-        const tbody = document.getElementById('orderList');
         
         if (orderErr) {
-            tbody.innerHTML = '<tr><td colspan="7" style="color:red;">Fehler beim Laden</td></tr>';
+            document.getElementById('orderList').innerHTML = '<tr><td colspan="7" style="color:red;">Fehler beim Laden</td></tr>';
             return;
         }
 
         currentOrders = orders || [];
         cachedFiles = files || [];
-        tbody.innerHTML = '';
+        
         let total = 0;
         let dailyTotals = {};
 
-        if (currentOrders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7">Noch keine Bestellungen vorhanden.</td></tr>';
-            document.getElementById('totalRevenue').textContent = '0,00 €';
-            updateChart({});
+        currentOrders.forEach(function(order) {
+            const ums = Number(order.umsatz || 0);
+            total += ums;
+            if (order.datum) {
+                const dayKey = order.datum.split('T')[0];
+                dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + ums;
+            }
+        });
+
+        document.getElementById('totalRevenue').textContent = total.toFixed(2) + ' €';
+        updateChart(dailyTotals);
+        renderTable(currentOrders);
+        updateDashboardView();
+    }
+
+    // Funktion zum Rendern der Tabelle (wird auch bei der Suche verwendet)
+    function renderTable(ordersToRender) {
+        const tbody = document.getElementById('orderList');
+        tbody.innerHTML = '';
+
+        if (ordersToRender.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7">Keine passenden Bestellungen gefunden.</td></tr>';
             return;
         }
 
-        currentOrders.forEach(function(order) {
+        ordersToRender.forEach(function(order) {
             const id = order.id;
             const datum = order.datum ? order.datum.split('T')[0] : '-';
             const num = order.bestellnummer || '-';
             const plat = order.plattform || '-';
             const ums = Number(order.umsatz || 0);
             const note = order.notizen || '-';
-
-            total += ums;
-
-            if (order.datum) {
-                const dayKey = order.datum.split('T')[0];
-                dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + ums;
-            }
 
             const file = cachedFiles.find(function(f) { return String(f.bestellung_id) === String(id); });
             let fileHtml = 'Kein Beleg';
@@ -316,13 +328,21 @@
                 '<td><button type="button" class="btn-small btn-edit" onclick="openEditModal(\x27' + id + '\x27)">Bearbeiten</button></td>' +
                 '</tr>';
         });
-
-        document.getElementById('totalRevenue').textContent = total.toFixed(2) + ' €';
-        updateChart(dailyTotals);
-        updateDashboardView();
     }
 
-    // Logik für das erweiterte Statistik-Dashboard
+    // Live-Suchfilter für die Tabelle
+    window.filterOrderTable = function() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = currentOrders.filter(order => {
+            const num = (order.bestellnummer || '').toLowerCase();
+            const note = (order.notizen || '').toLowerCase();
+            const plat = (order.plattform || '').toLowerCase();
+            const date = (order.datum || '').toLowerCase();
+            return num.includes(query) || note.includes(query) || plat.includes(query) || date.includes(query);
+        });
+        renderTable(filtered);
+    }
+
     window.updateDashboardView = function() {
         const filter = document.getElementById('timeFilter').value;
         const now = new Date();
@@ -343,7 +363,7 @@
             if (filter === 'month') {
                 return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
             }
-            return true; // 'all'
+            return true;
         });
 
         const periodUmsatz = filtered.reduce((sum, o) => sum + (parseFloat(o.umsatz) || 0), 0);
@@ -425,6 +445,7 @@
             statusDiv.textContent = 'Erfolgreich gespeichert!';
             document.getElementById('orderForm').reset();
             document.getElementById('orderDate').valueAsDate = new Date();
+            document.getElementById('searchInput').value = '';
             await loadData();
         } catch (error) {
             statusDiv.textContent = 'Fehler: ' + error.message;
@@ -454,7 +475,7 @@
     window.saveEditedOrder = async function() {
         const id = document.getElementById('editOrderId').value;
         const datum = document.getElementById('editOrderDate').value;
-        const bestellnummer = document.getElementById('editOrderNumber').value;
+        const bestellnummer = document.getElementById('editOrderNumber'].value;
         const umsatz = parseFloat(document.getElementById('editAmount').value);
         const plattform = document.getElementById('editPlatform').value;
         const notizen = document.getElementById('editNotes').value;
@@ -473,7 +494,6 @@
                 .eq('id', id);
 
             if (error) throw error;
-
             if (editFileInput) await uploadBelegFile(id, editFileInput);
 
             window.closeEditModal();

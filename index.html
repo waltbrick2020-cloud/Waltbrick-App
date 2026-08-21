@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waltbrick App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #f4f4f9; }
+        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #007bff; color: white; padding: 10px; border: none; border-radius: 4px; width: 100%; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #0056b3; }
+        .btn-small { padding: 5px 10px; font-size: 13px; width: auto; display: inline-block; }
+        .btn-edit { background-color: #28a745; }
+        .btn-edit:hover { background-color: #218838; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
+        img.thumb { max-width: 45px; max-height: 45px; border-radius: 4px; cursor: pointer; object-fit: cover; }
+        #status { margin-top: 10px; font-weight: bold; text-align: center; padding: 8px; border-radius: 4px; }
+        #app-content { display: none; }
+        #login-screen { text-align: center; padding: 50px; background: white; border-radius: 8px; margin-top: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        #login-screen input { max-width: 250px; margin: 10px auto; display: inline-block; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 8px; max-width: 500px; position: relative; }
+        .close-btn { position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <h2>Geschützter Bereich</h2>
+    <p>Bitte gib die gemeinsame PIN ein:</p>
+    <input type="password" id="pinInput" placeholder="PIN eingeben...">
+    <button type="button" id="unlockBtn" style="max-width: 200px; margin: auto;">Entsperren</button>
+    <p id="pinError" style="color: red; margin-top: 10px;"></p>
+</div>
+
+<div id="app-content">
+    <div class="card">
+        <h2>Gesamtumsatz: <span id="totalRevenue" style="color: #007bff;">0,00 €</span></h2>
+    </div>
+
+    <div class="card">
+        <h3>Tagesumsatz</h3>
+        <div style="position: relative; height:200px; width:100%">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Neue Bestellung erfassen</h2>
+        <form id="orderForm">
+            <div class="form-group">
+                <label for="orderDate">Datum:</label>
+                <input type="date" id="orderDate" required>
+            </div>
+            <div class="form-group">
+                <label for="orderNumber">Bestellnummer:</label>
+                <input type="text" id="orderNumber" required>
+            </div>
+            <div class="form-group">
+                <label for="amount">Umsatz (€):</label>
+                <input type="number" id="amount" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="platform">Plattform:</label>
+                <select id="platform">
+                    <option value="BrickLink">BrickLink</option>
+                    <option value="BrickOwl">BrickOwl</option>
+                    <option value="Sonstiges">Sonstiges</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="notes">Kunde / Notiz:</label>
+                <input type="text" id="notes" placeholder="z. B. Käufername">
+            </div>
+            <div class="form-group">
+                <label for="file">Beleg / Foto:</label>
+                <input type="file" id="file" accept="image/*,.pdf" capture="environment">
+            </div>
+            <button type="submit" id="submitBtn">Speichern</button>
+        </form>
+        <div id="status"></div>
+    </div>
+
+    <div class="card">
+        <h2>Bestellungen</h2>
+        <div style="overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Nummer</th>
+                        <th>Plattform</th>
+                        <th>Umsatz</th>
+                        <th>Notiz</th>
+                        <th>Beleg</th>
+                        <th>Aktion</th>
+                    </tr>
+                </thead>
+                <tbody id="orderList">
+                    <tr><td colspan="7">Lade Daten...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeEditModal()">&times;</span>
+        <h2>Bestellung bearbeiten</h2>
+        <input type="hidden" id="editOrderId">
+        <div class="form-group">
+            <label>Datum:</label>
+            <input type="date" id="editOrderDate">
+        </div>
+        <div class="form-group">
+            <label>Bestellnummer:</label>
+            <input type="text" id="editOrderNumber">
+        </div>
+        <div class="form-group">
+            <label>Umsatz (€):</label>
+            <input type="number" id="editAmount" step="0.01">
+        </div>
+        <div class="form-group">
+            <label>Plattform:</label>
+            <select id="editPlatform">
+                <option value="BrickLink">BrickLink</option>
+                <option value="BrickOwl">BrickOwl</option>
+                <option value="Sonstiges">Sonstiges</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Kunde / Notiz:</label>
+            <input type="text" id="editNotes">
+        </div>
+        <div class="form-group">
+            <label>Beleg ersetzen:</label>
+            <input type="file" id="editFile" accept="image/*,.pdf">
+        </div>
+        <button type="button" class="btn-edit" onclick="saveEditedOrder()">Änderungen speichern</button>
+    </div>
+</div>
+
+<script>
+    const GEHEIME_PIN = "19782000";
+    const SUPABASE_URL = 'https://dobwsugbitrtxydnmxpu.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_OyUfaB2OzihpDCYkC_u8EQ_2LCILRI2';
+    
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false }
+    });
+
+    let currentOrders = [];
+    let myChart = null;
+
+    document.getElementById('orderDate').valueAsDate = new Date();
+
+    function checkPin() {
+        const enteredPin = document.getElementById('pinInput').value;
+        if (enteredPin === GEHEIME_PIN) {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+            loadData(); 
+        } else {
+            document.getElementById('pinError').textContent = 'Falsche PIN!';
+        }
+    }
+
+    document.getElementById('unlockBtn').addEventListener('click', checkPin);
+    document.getElementById('pinInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') checkPin();
+    });
+
+    async function uploadBelegFile(orderId, file) {
+        const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const fileName = orderId + '_' + Date.now() + '_' + cleanName;
+        const { error: uploadError } = await db.storage.from('belege').upload(fileName, file);
+        if (uploadError) throw uploadError;
+        const { data: publicUrlData } = db.storage.from('belege').getPublicUrl(fileName);
+        const { error: fileTableError } = await db.from('belege').insert([{ 
+            bestellung_id: orderId, 
+            file_url: publicUrlData.publicUrl, 
+            file_type: file.type 
+        }]);
+        if (fileTableError) throw fileTableError;
+    }
+
+    async function loadData() {
+        const { data: orders, error: orderErr } = await db.from('bestellungen').select('*').order('datum', { ascending: false });
+        const { data: files } = await db.from('belege').select('*');
+        const tbody = document.getElementById('orderList');
+        
+        if (orderErr) {
+            tbody.innerHTML = '<tr><td colspan="7" style="color:red;">Fehler beim Laden</td></tr>';
+            return;
+        }
+
+        currentOrders = orders || [];
+        tbody.innerHTML = '';
+        let total = 0;
+        let dailyTotals = {};
+
+        if (currentOrders.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7">Noch keine Bestellungen vorhanden.</td></tr>';
+            document.getElementById('totalRevenue').textContent = '0,00 €';
+            updateChart({});
+            return;
+        }
+
+        currentOrders.forEach(function(order) {
+            const id = order.id;
+            const datum = order.datum ? order.datum.split('T')[0] : '-';
+            const num = order.bestellnummer || '-';
+            const plat = order.plattform || '-';
+            const ums = Number(order.umsatz || 0);
+            const note = order.notizen || '-';
+
+            total += ums;
+
+            if (order.datum) {
+                const dayKey = order.datum.split('T')[0];
+                dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + ums;
+            }
+
+            const file = files ? files.find(function(f) { return f.bestellung_id === id; }) : null;
+            let fileHtml = 'Kein Beleg';
+            if (file && file.file_url) {
+                if (file.file_type && file.file_type.includes('pdf')) {
+                    fileHtml = '<a href="' + file.file_url + '" target="_blank">PDF</a>';
+                } else {
+                    fileHtml = '<a href="' + file.file_url + '" target="_blank"><img src="' + file.file_url + '" class="thumb"></a>';
+                }
+            }
+
+            tbody.innerHTML += '<tr>' +
+                '<td>' + datum + '</td>' +
+                '<td><b>' + num + '</b></td>' +
+                '<td>' + plat + '</td>' +
+                '<td>' + ums.toFixed(2) + ' €</td>' +
+                '<td>' + note + '</td>' +
+                '<td>' + fileHtml + '</td>' +
+                '<td><button type="button" class="btn-small btn-edit" onclick="openEditModal(' + id + ')">Bearbeiten</button></td>' +
+                '</tr>';
+        });
+
+        document.getElementById('totalRevenue').textContent = total.toFixed(2) + ' €';
+        updateChart(dailyTotals);
+    }
+
+    function updateChart(dailyTotals) {
+        const sortedDays = Object.keys(dailyTotals).sort();
+        const dataValues = sortedDays.map(function(day) { return dailyTotals[day]; });
+        const ctx = document.getElementById('revenueChart').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sortedDays,
+                datasets: [{
+                    label: 'Umsatz in €',
+                    data: dataValues,
+                    backgroundColor: '#007bff',
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } }
+            }
+        });
+    }
+
+    document.getElementById('orderForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const statusDiv = document.getElementById('status');
+        btn.disabled = true;
+        statusDiv.textContent = 'Speichere...';
+
+        const datum = document.getElementById('orderDate').value;
+        const bestellnummer = document.getElementById('orderNumber').value;
+        const umsatz = parseFloat(document.getElementById('amount').value);
+        const plattform = document.getElementById('platform').value;
+        const notizen = document.getElementById('notes').value;
+        const fileInput = document.getElementById('file').files[0];
+
+        try {
+            const { data: newOrder, error } = await db
+                .from('bestellungen')
+                .insert([{ datum: datum, bestellnummer: bestellnummer, umsatz: umsatz, plattform: plattform, notizen: notizen }])
+                .select()
+                .single();
+
+            if (error) throw error;
+            if (fileInput && newOrder) await uploadBelegFile(newOrder.id, fileInput);
+
+            statusDiv.textContent = 'Erfolgreich gespeichert!';
+            document.getElementById('orderForm'].reset();
+            document.getElementById('orderDate').valueAsDate = new Date();
+            await loadData();
+        } catch (error) {
+            statusDiv.textContent = 'Fehler: ' + error.message;
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
+    function openEditModal(orderId) {
+        const order = currentOrders.find(function(o) { return String(o.id) === String(orderId); });
+        if (!order) return;
+
+        document.getElementById('editOrderId').value = order.id;
+        document.getElementById('editOrderDate').value = order.datum ? order.datum.split('T')[0] : '';
+        document.getElementById('editOrderNumber').value = order.bestellnummer || '';
+        document.getElementById('editAmount').value = order.umsatz || '';
+        document.getElementById('editPlatform').value = order.plattform || 'BrickLink';
+        document.getElementById('editNotes').value = order.notizen || '';
+        document.getElementById('editFile').value = '';
+        document.getElementById('editModal').style.display = 'block';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    async function saveEditedOrder() {
+        const id = document.getElementById('editOrderId').value;
+        const datum = document.getElementById('editOrderDate').value;
+        const bestellnummer = document.getElementById('editOrderNumber').value;
+        const umsatz = parseFloat(document.getElementById('editAmount').value);
+        const plattform = document.getElementById('editPlatform').value;
+        const notizen = document.getElementById('editNotes').value;
+        const editFileInput = document.getElementById('editFile').files[0];
+
+        try {
+            const { error } = await db
+                .from('bestellungen')
+                .update({ datum: datum, bestellnummer: bestellnummer, umsatz: umsatz, plattform: plattform, notizen: notizen })
+                .eq('id', id);
+
+            if (error) throw error;
+            if (editFileInput) await uploadBelegFile(id, editFileInput);
+
+            closeEditModal();
+            await loadData();
+        } catch (err) {
+            alert('Fehler beim Bearbeiten: ' + err.message);
+        }
+    }
+</script>
+
+</body>
+</html>

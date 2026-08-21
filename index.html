@@ -27,6 +27,16 @@
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
         .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 8px; max-width: 500px; position: relative; }
         .close-btn { position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; font-weight: bold; }
+        
+        /* Navigation & Dashboard Styles */
+        .app-nav { display: flex; gap: 10px; margin-bottom: 20px; }
+        .app-nav button { width: auto; flex: 1; }
+        .section-view { display: none; }
+        .section-view.active { display: block; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 1.1em; }
+        .stat-card span { font-weight: bold; color: #007bff; font-size: 1.3em; display: block; margin-top: 5px; }
+        .platform-box { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
@@ -40,72 +50,107 @@
 </div>
 
 <div id="app-content">
-    <div class="card">
-        <h2>Gesamtumsatz: <span id="totalRevenue" style="color: #007bff;">0,00 €</span></h2>
+    <!-- Menü zum Umschalten -->
+    <div class="app-nav">
+        <button type="button" onclick="switchView('orders')" id="btnViewOrders">Bestellungen & Erfassung</button>
+        <button type="button" onclick="switchView('dashboard')" id="btnViewDashboard" style="background-color: #6c757d;">Erweiterte Statistiken</button>
     </div>
 
-    <div class="card">
-        <h3>Tagesumsatz</h3>
-        <div style="position: relative; height:200px; width:100%">
-            <canvas id="revenueChart"></canvas>
+    <!-- ANSICHT 1: BESTELLUNGEN & ERFASSUNG -->
+    <div id="viewOrders" class="section-view active">
+        <div class="card">
+            <h2>Gesamtumsatz: <span id="totalRevenue" style="color: #007bff;">0,00 €</span></h2>
+        </div>
+
+        <div class="card">
+            <h3>Tagesumsatz (Verlauf)</h3>
+            <div style="position: relative; height:200px; width:100%">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Neue Bestellung erfassen</h2>
+            <form id="orderForm">
+                <div class="form-group">
+                    <label for="orderDate">Datum:</label>
+                    <input type="date" id="orderDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="orderNumber">Bestellnummer:</label>
+                    <input type="text" id="orderNumber" required>
+                </div>
+                <div class="form-group">
+                    <label for="amount">Umsatz (€):</label>
+                    <input type="number" id="amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="platform">Plattform:</label>
+                    <select id="platform">
+                        <option value="BrickLink">BrickLink</option>
+                        <option value="BrickOwl">BrickOwl</option>
+                        <option value="Sonstiges">Sonstiges</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="notes">Kunde / Notiz:</label>
+                    <input type="text" id="notes" placeholder="z. B. Käufername">
+                </div>
+                <div class="form-group">
+                    <label for="file">Beleg / Foto:</label>
+                    <input type="file" id="file" accept="image/*,.pdf" capture="environment">
+                </div>
+                <button type="submit" id="submitBtn">Speichern</button>
+            </form>
+            <div id="status"></div>
+        </div>
+
+        <div class="card">
+            <h2>Bestellungen</h2>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Nummer</th>
+                            <th>Plattform</th>
+                            <th>Umsatz</th>
+                            <th>Notiz</th>
+                            <th>Beleg</th>
+                            <th>Aktion</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orderList">
+                        <tr><td colspan="7">Lade Daten...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <div class="card">
-        <h2>Neue Bestellung erfassen</h2>
-        <form id="orderForm">
-            <div class="form-group">
-                <label for="orderDate">Datum:</label>
-                <input type="date" id="orderDate" required>
-            </div>
-            <div class="form-group">
-                <label for="orderNumber">Bestellnummer:</label>
-                <input type="text" id="orderNumber" required>
-            </div>
-            <div class="form-group">
-                <label for="amount">Umsatz (€):</label>
-                <input type="number" id="amount" step="0.01" required>
-            </div>
-            <div class="form-group">
-                <label for="platform">Plattform:</label>
-                <select id="platform">
-                    <option value="BrickLink">BrickLink</option>
-                    <option value="BrickOwl">BrickOwl</option>
-                    <option value="Sonstiges">Sonstiges</option>
+    <!-- ANSICHT 2: ERWEITERTE STATISTIKEN -->
+    <div id="viewDashboard" class="section-view">
+        <div class="card">
+            <h2>Statistik-Dashboard</h2>
+            <div class="form-group" style="max-width: 250px; margin-bottom: 20px;">
+                <label for="timeFilter">Zeitraum wählen:</label>
+                <select id="timeFilter" onchange="updateDashboardView()">
+                    <option value="day">Heute</option>
+                    <option value="week">Diese Woche</option>
+                    <option value="month" selected>Dieser Monat</option>
+                    <option value="all">Gesamt</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label for="notes">Kunde / Notiz:</label>
-                <input type="text" id="notes" placeholder="z. B. Käufername">
-            </div>
-            <div class="form-group">
-                <label for="file">Beleg / Foto:</label>
-                <input type="file" id="file" accept="image/*,.pdf" capture="environment">
-            </div>
-            <button type="submit" id="submitBtn">Speichern</button>
-        </form>
-        <div id="status"></div>
-    </div>
 
-    <div class="card">
-        <h2>Bestellungen</h2>
-        <div style="overflow-x:auto;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Datum</th>
-                        <th>Nummer</th>
-                        <th>Plattform</th>
-                        <th>Umsatz</th>
-                        <th>Notiz</th>
-                        <th>Beleg</th>
-                        <th>Aktion</th>
-                    </tr>
-                </thead>
-                <tbody id="orderList">
-                    <tr><td colspan="7">Lade Daten...</td></tr>
-                </tbody>
-            </table>
+            <div class="stats-grid">
+                <div class="stat-card">Umsatz im Zeitraum <span id="statUmsatz">0,00 €</span></div>
+                <div class="stat-card">Bestellungen <span id="statCount">0</span></div>
+            </div>
+
+            <h3>Aufteilung nach Plattform</h3>
+            <div class="platform-box" id="platformStats">
+                <p>Keine Daten vorhanden.</p>
+            </div>
         </div>
     </div>
 </div>
@@ -157,6 +202,7 @@
     });
 
     let currentOrders = [];
+    let cachedFiles = [];
     let myChart = null;
 
     document.getElementById('orderDate').valueAsDate = new Date();
@@ -176,6 +222,27 @@
     document.getElementById('pinInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') checkPin();
     });
+
+    // Umschalten zwischen den Ansichten
+    window.switchView = function(viewName) {
+        const btnOrders = document.getElementById('btnViewOrders');
+        const btnDashboard = document.getElementById('btnViewDashboard');
+        const viewOrders = document.getElementById('viewOrders');
+        const viewDashboard = document.getElementById('viewDashboard');
+
+        if (viewName === 'orders') {
+            viewOrders.classList.add('active');
+            viewDashboard.classList.remove('active');
+            btnOrders.style.backgroundColor = '#007bff';
+            btnDashboard.style.backgroundColor = '#6c757d';
+        } else {
+            viewDashboard.classList.add('active');
+            viewOrders.classList.remove('active');
+            btnDashboard.style.backgroundColor = '#007bff';
+            btnOrders.style.backgroundColor = '#6c757d';
+            updateDashboardView();
+        }
+    }
 
     async function uploadBelegFile(orderId, file) {
         const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -202,6 +269,7 @@
         }
 
         currentOrders = orders || [];
+        cachedFiles = files || [];
         tbody.innerHTML = '';
         let total = 0;
         let dailyTotals = {};
@@ -228,7 +296,7 @@
                 dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + ums;
             }
 
-            const file = files ? files.find(function(f) { return f.bestellung_id === id; }) : null;
+            const file = cachedFiles.find(function(f) { return String(f.bestellung_id) === String(id); });
             let fileHtml = 'Kein Beleg';
             if (file && file.file_url) {
                 if (file.file_type && file.file_type.includes('pdf')) {
@@ -251,6 +319,58 @@
 
         document.getElementById('totalRevenue').textContent = total.toFixed(2) + ' €';
         updateChart(dailyTotals);
+        updateDashboardView();
+    }
+
+    // Logik für das erweiterte Statistik-Dashboard
+    window.updateDashboardView = function() {
+        const filter = document.getElementById('timeFilter').value;
+        const now = new Date();
+
+        const filtered = currentOrders.filter(o => {
+            if (!o.datum) return false;
+            const orderDate = new Date(o.datum);
+
+            if (filter === 'day') {
+                return orderDate.toDateString() === now.toDateString();
+            }
+            if (filter === 'week') {
+                const startOfWeek = new Date(now);
+                startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+                startOfWeek.setHours(0,0,0,0);
+                return orderDate >= startOfWeek;
+            }
+            if (filter === 'month') {
+                return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
+            }
+            return true; // 'all'
+        });
+
+        const periodUmsatz = filtered.reduce((sum, o) => sum + (parseFloat(o.umsatz) || 0), 0);
+        document.getElementById('statUmsatz').innerText = periodUmsatz.toFixed(2) + ' €';
+        document.getElementById('statCount').innerText = filtered.length;
+
+        const platforms = {};
+        filtered.forEach(o => {
+            const plat = o.plattform || 'Sonstiges';
+            if (!platforms[plat]) {
+                platforms[plat] = { count: 0, umsatz: 0 };
+            }
+            platforms[plat].count += 1;
+            platforms[plat].umsatz += parseFloat(o.umsatz) || 0;
+        });
+
+        const platformDiv = document.getElementById('platformStats');
+        if (Object.keys(platforms).length === 0) {
+            platformDiv.innerHTML = '<p>Keine Bestellungen im gewählten Zeitraum.</p>';
+        } else {
+            platformDiv.innerHTML = Object.entries(platforms).map(([p, data]) => `
+                <div style="margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <span><strong>${p}</strong>: ${data.count} Bestellungen</span>
+                    <span style="color: #007bff; font-weight: bold;">${data.umsatz.toFixed(2)} €</span>
+                </div>
+            `).join('');
+        }
     }
 
     function updateChart(dailyTotals) {

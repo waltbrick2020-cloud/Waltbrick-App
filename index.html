@@ -338,8 +338,8 @@
     }
 
     async function saveEditedOrder() {
-        const idRaw = document.getElementById('editOrderId').value;
-        const id = !isNaN(idRaw) ? parseInt(idRaw, 10) : idRaw;
+        // ID bleibt als String (UUID), kein parseInt!
+        const id = document.getElementById('editOrderId').value;
 
         const datum = document.getElementById('editOrderDate').value;
         const bestellnummer = document.getElementById('editOrderNumber').value;
@@ -349,7 +349,6 @@
         const editFileInput = document.getElementById('editFile').files[0];
 
         try {
-            // Wir senden sowohl 'notizen' als auch 'notiz' mit, damit es in deiner DB auf jeden Fall ankommt
             const updateData = { 
                 datum: datum, 
                 bestellnummer: bestellnummer, 

@@ -345,7 +345,13 @@
         try {
             const { error } = await db
                 .from('bestellungen')
-                .update({ datum: datum, bestellnummer: bestellnummer, umsatz: umsatz, plattform: plattform, notizen: notizen })
+                .update({ 
+                    datum: datum, 
+                    bestellnummer: bestellnummer, 
+                    umsatz: umsatz, 
+                    plattform: plattform, 
+                    notizen: notizen 
+                })
                 .eq('id', id);
 
             if (error) throw error;

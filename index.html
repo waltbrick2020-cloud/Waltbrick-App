@@ -303,7 +303,7 @@
             if (fileInput && newOrder) await uploadBelegFile(newOrder.id, fileInput);
 
             statusDiv.textContent = 'Erfolgreich gespeichert!';
-            document.getElementById('orderForm'].reset();
+            document.getElementById('orderForm').reset();
             document.getElementById('orderDate').valueAsDate = new Date();
             await loadData();
         } catch (error) {

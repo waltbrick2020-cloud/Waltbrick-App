@@ -313,31 +313,25 @@
         }
     });
 
-    function openEditModal(orderId) {
+    window.openEditModal = function(orderId) {
         const order = currentOrders.find(function(o) { return String(o.id) === String(orderId); });
         if (!order) return;
 
         document.getElementById('editOrderId').value = order.id;
-        
-        // Datum sauber extrahieren (nimmt immer den Teil vor dem 'T')
-        if (order.datum) {
-            document.getElementById('editOrderDate').value = order.datum.split('T')[0].split(' ')[0];
-        } else {
-            document.getElementById('editOrderDate').value = '';
-        }
-
+        document.getElementById('editOrderDate').value = order.datum ? order.datum.split('T')[0].split(' ')[0] : '';
         document.getElementById('editOrderNumber').value = order.bestellnummer || '';
         document.getElementById('editAmount').value = order.umsatz || '';
         document.getElementById('editPlatform').value = order.plattform || 'BrickLink';
-        
-        // Notizen auslesen (egal ob Spalte notizen oder notiz heißt)
-        document.getElementById('editNotes').value = order.notizen || order.notiz || '';
-        
+        document.getElementById('editNotes').value = order.notizen || '';
         document.getElementById('editFile').value = '';
         document.getElementById('editModal').style.display = 'block';
     }
 
-    async function saveEditedOrder() {
+    window.closeEditModal = function() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    window.saveEditedOrder = async function() {
         const id = document.getElementById('editOrderId').value;
         const datum = document.getElementById('editOrderDate').value;
         const bestellnummer = document.getElementById('editOrderNumber').value;
@@ -362,7 +356,7 @@
 
             if (editFileInput) await uploadBelegFile(id, editFileInput);
 
-            closeEditModal();
+            window.closeEditModal();
             await loadData();
         } catch (err) {
             alert('Fehler beim Bearbeiten: ' + err.message);

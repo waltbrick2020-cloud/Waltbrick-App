@@ -332,7 +332,9 @@
     }
 
     async function saveEditedOrder() {
-        const id = document.getElementById('editOrderId').value;
+        const idRaw = document.getElementById('editOrderId').value;
+        const id = !isNaN(idRaw) ? parseInt(idRaw, 10) : idRaw;
+
         const datum = document.getElementById('editOrderDate').value;
         const bestellnummer = document.getElementById('editOrderNumber').value;
         const umsatz = parseFloat(document.getElementById('editAmount').value);

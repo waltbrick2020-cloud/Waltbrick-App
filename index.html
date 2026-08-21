@@ -338,9 +338,7 @@
     }
 
     async function saveEditedOrder() {
-        // ID bleibt als String (UUID), kein parseInt!
         const id = document.getElementById('editOrderId').value;
-
         const datum = document.getElementById('editOrderDate').value;
         const bestellnummer = document.getElementById('editOrderNumber').value;
         const umsatz = parseFloat(document.getElementById('editAmount').value);
@@ -349,21 +347,19 @@
         const editFileInput = document.getElementById('editFile').files[0];
 
         try {
-            const updateData = { 
-                datum: datum, 
-                bestellnummer: bestellnummer, 
-                umsatz: umsatz, 
-                plattform: plattform, 
-                notizen: notizen,
-                notiz: notizen 
-            };
-
             const { error } = await db
                 .from('bestellungen')
-                .update(updateData)
+                .update({ 
+                    datum: datum, 
+                    bestellnummer: bestellnummer, 
+                    umsatz: umsatz, 
+                    plattform: plattform, 
+                    notizen: notizen 
+                })
                 .eq('id', id);
 
             if (error) throw error;
+
             if (editFileInput) await uploadBelegFile(id, editFileInput);
 
             closeEditModal();

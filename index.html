@@ -7,39 +7,54 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #f4f4f9; }
-        .card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #f4f4f9; color: #333; }
+        .card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
         .form-group { margin-bottom: 12px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { background-color: #007bff; color: white; padding: 10px; border: none; border-radius: 4px; width: 100%; cursor: pointer; font-size: 16px; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        button { background-color: #007bff; color: white; padding: 10px; border: none; border-radius: 6px; width: 100%; cursor: pointer; font-size: 16px; font-weight: 600; }
         button:hover { background-color: #0056b3; }
-        .btn-small { padding: 5px 10px; font-size: 13px; width: auto; display: inline-block; }
+        .btn-small { padding: 6px 12px; font-size: 13px; width: auto; display: inline-block; }
         .btn-edit { background-color: #28a745; }
         .btn-edit:hover { background-color: #218838; }
         .btn-danger { background-color: #dc3545; }
         .btn-danger:hover { background-color: #c82333; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
+        th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #eee; }
+        th { background-color: #fafafa; font-weight: 600; color: #666; }
         img.thumb { max-width: 45px; max-height: 45px; border-radius: 4px; cursor: pointer; object-fit: cover; }
         #status, #finanzStatus { margin-top: 10px; font-weight: bold; text-align: center; padding: 8px; border-radius: 4px; }
         #app-content { display: none; }
-        #login-screen { text-align: center; padding: 50px; background: white; border-radius: 8px; margin-top: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        #login-screen { text-align: center; padding: 50px; background: white; border-radius: 12px; margin-top: 50px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         #login-screen input { max-width: 250px; margin: 10px auto; display: block; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-        .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 8px; max-width: 500px; position: relative; }
+        .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 12px; max-width: 500px; position: relative; }
         .close-btn { position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; font-weight: bold; }
         
-        /* Header & Nav Styles */
+        /* Header & Nav */
         .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .app-nav { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .app-nav button { width: auto; flex: 1; min-width: 120px; }
+        .app-nav button { width: auto; flex: 1; min-width: 120px; background-color: #6c757d; }
+        .app-nav button.active { background-color: #007bff; }
         .section-view { display: none; }
         .section-view.active { display: block; }
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 1.1em; }
+        .stat-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); font-size: 1.0em; }
         .stat-card span { font-weight: bold; color: #007bff; font-size: 1.3em; display: block; margin-top: 5px; }
-        .platform-box { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+
+        /* Aktienkurs-Spezifische Styles */
+        .stock-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        .stock-price { font-size: 2em; font-weight: 800; color: #111; line-height: 1; }
+        .stock-change { font-size: 1em; font-weight: 700; margin-top: 6px; display: inline-block; padding: 4px 8px; border-radius: 6px; }
+        .stock-change.positive { background-color: #e6f4ea; color: #137333; }
+        .stock-change.negative { background-color: #fce8e6; color: #c5221f; }
+        
+        /* Timeframe Filter Buttons */
+        .timeframe-bar { display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 12px; }
+        .tf-btn { background: #f1f3f4; color: #5f6368; border: none; padding: 6px 14px; border-radius: 16px; font-size: 13px; font-weight: 600; cursor: pointer; width: auto; }
+        .tf-btn:hover { background: #e8eaed; }
+        .tf-btn.active { background: #1a73e8; color: white; }
     </style>
 </head>
 <body>
@@ -56,20 +71,19 @@
 </div>
 
 <div id="app-content">
-    <!-- Header mit Logout-Button -->
     <div class="app-header">
         <h2 style="margin: 0;">Waltbrick Dashboard</h2>
         <button type="button" class="btn-small btn-danger" onclick="logout()">Gesperrt mod. verlassen</button>
     </div>
 
-    <!-- Menü zum Umschalten (3 Reiter) -->
+    <!-- Navigationsleiste -->
     <div class="app-nav">
-        <button type="button" onclick="switchView('orders')" id="btnViewOrders">Bestellungen</button>
-        <button type="button" onclick="switchView('dashboard')" id="btnViewDashboard" style="background-color: #6c757d;">Statistiken</button>
-        <button type="button" onclick="switchView('finanzen')" id="btnViewFinanzen" style="background-color: #6c757d;">Finanzen</button>
+        <button type="button" onclick="switchView('orders')" id="btnViewOrders" class="active">Bestellungen</button>
+        <button type="button" onclick="switchView('dashboard')" id="btnViewDashboard">Statistiken</button>
+        <button type="button" onclick="switchView('finanzen')" id="btnViewFinanzen">Finanzen</button>
     </div>
 
-    <!-- ANSICHT 1: BESTELLUNGEN & ERFASSUNG -->
+    <!-- ANSICHT 1: BESTELLUNGEN -->
     <div id="viewOrders" class="section-view active">
         <div class="card">
             <h2>Gesamtumsatz: <span id="totalRevenue" style="color: #007bff;">0,00 €</span></h2>
@@ -144,7 +158,7 @@
         </div>
     </div>
 
-    <!-- ANSICHT 2: ERWEITERTE STATISTIKEN -->
+    <!-- ANSICHT 2: STATISTIKEN -->
     <div id="viewDashboard" class="section-view">
         <div class="card">
             <h2>Statistik-Dashboard</h2>
@@ -164,13 +178,13 @@
             </div>
 
             <h3>Aufteilung & Durchschnitt nach Plattform</h3>
-            <div class="platform-box" id="platformStats">
+            <div id="platformStats">
                 <p>Keine Daten vorhanden.</p>
             </div>
         </div>
     </div>
 
-    <!-- ANSICHT 3: FINANZEN & AKTIEN-TAGESABSCHLUSS -->
+    <!-- ANSICHT 3: FINANZEN (AKTIENKURS-STYLE) -->
     <div id="viewFinanzen" class="section-view">
         <div class="card">
             <h2>Tagesabschluss eintragen</h2>
@@ -197,24 +211,30 @@
         </div>
 
         <div class="card">
-            <h2>Finanz- & Aktienkurs-Historie</h2>
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
-                <div class="stats-grid" style="margin-bottom: 0; flex: 1; min-width: 250px;">
-                    <div class="stat-card" style="margin-bottom:0;">Aktueller Kurs (Gesamt) <span id="finanzGesamt">0,00 €</span></div>
-                    <div class="stat-card" style="margin-bottom:0;">Tagesänderung <span id="finanzVergleich">0,00 € (0.00%)</span></div>
+            <!-- Aktienkurs Header -->
+            <div class="stock-header">
+                <div>
+                    <div style="font-size: 0.9em; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Gesamtvermögen Kurs</div>
+                    <div class="stock-price" id="stockCurrentPrice">0,00 €</div>
                 </div>
-                <div class="form-group" style="max-width: 200px; margin-bottom: 0;">
-                    <label for="finanzTimeFilter">Kurs-Filter:</label>
-                    <select id="finanzTimeFilter" onchange="renderFinanzTable()">
-                        <option value="week">Diese Woche</option>
-                        <option value="month" selected>Dieser Monat</option>
-                        <option value="year">Dieses Jahr</option>
-                        <option value="all">Gesamt</option>
-                    </select>
-                </div>
+                <div id="stockChangeBadge" class="stock-change positive">+0,00 € (0,00%)</div>
             </div>
 
+            <!-- Zeitraum Filter Buttons (Stock Style) -->
+            <div class="timeframe-bar">
+                <button type="button" class="tf-btn" onclick="setFinanzTimeframe('week')" id="tf-week">1 Woche</button>
+                <button type="button" class="tf-btn active" onclick="setFinanzTimeframe('month')" id="tf-month">1 Monat</button>
+                <button type="button" class="tf-btn" onclick="setFinanzTimeframe('year')" id="tf-year">1 Jahr</button>
+                <button type="button" class="tf-btn" onclick="setFinanzTimeframe('all')" id="tf-all">Gesamt</button>
+            </div>
+
+            <!-- Aktienkurs Chart -->
+            <div style="position: relative; height: 260px; width:100%; margin-bottom: 25px;">
+                <canvas id="stockChartCanvas"></canvas>
+            </div>
+
+            <!-- Kurshistorie Tabelle -->
+            <h3 style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">Kurshistorie</h3>
             <div style="overflow-x:auto;">
                 <table>
                     <thead>
@@ -224,7 +244,7 @@
                             <th>Bank</th>
                             <th>Sparen</th>
                             <th>Kurs (Gesamt)</th>
-                            <th>Änderung zum Vortag</th>
+                            <th>Änderung</th>
                         </tr>
                     </thead>
                     <tbody id="finanzList">
@@ -286,6 +306,8 @@
     let cachedFiles = [];
     let currentFinanzen = [];
     let myChart = null;
+    let stockChart = null;
+    let currentFinanzFilter = 'month';
 
     document.getElementById('orderDate').valueAsDate = new Date();
     document.getElementById('finanzDate').valueAsDate = new Date();
@@ -362,21 +384,21 @@
         viewDashboard.classList.remove('active');
         viewFinanzen.classList.remove('active');
         
-        btnOrders.style.backgroundColor = '#6c757d';
-        btnDashboard.style.backgroundColor = '#6c757d';
-        btnFinanzen.style.backgroundColor = '#6c757d';
+        btnOrders.classList.remove('active');
+        btnDashboard.classList.remove('active');
+        btnFinanzen.classList.remove('active');
 
         if (viewName === 'orders') {
             viewOrders.classList.add('active');
-            btnOrders.style.backgroundColor = '#007bff';
+            btnOrders.classList.add('active');
         } else if (viewName === 'dashboard') {
             viewDashboard.classList.add('active');
-            btnDashboard.style.backgroundColor = '#007bff';
+            btnDashboard.classList.add('active');
             updateDashboardView();
         } else if (viewName === 'finanzen') {
             viewFinanzen.classList.add('active');
-            btnFinanzen.style.backgroundColor = '#007bff';
-            renderFinanzTable();
+            btnFinanzen.classList.add('active');
+            renderFinanzView();
         }
     }
 
@@ -423,7 +445,7 @@
         const { data: finanzenData, error: finanzErr } = await db.from('finanzen').select('*').order('datum', { ascending: false });
         if (!finanzErr) {
             currentFinanzen = finanzenData || [];
-            renderFinanzTable();
+            renderFinanzView();
         }
     }
 
@@ -536,72 +558,80 @@
         }
     }
 
-    function renderFinanzTable() {
+    /* AKTIENKURS & FINANZEN LOGIK */
+    window.setFinanzTimeframe = function(tf) {
+        currentFinanzFilter = tf;
+        document.querySelectorAll('.tf-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('tf-' + tf).classList.add('active');
+        renderFinanzView();
+    }
+
+    function renderFinanzView() {
         const tbody = document.getElementById('finanzList');
         tbody.innerHTML = '';
 
         if (currentFinanzen.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6">Keine Finanzdaten eingetragen.</td></tr>';
-            document.getElementById('finanzGesamt').textContent = '0,00 €';
-            document.getElementById('finanzVergleich').textContent = '0,00 € (0.00%)';
+            document.getElementById('stockCurrentPrice').textContent = '0,00 €';
+            document.getElementById('stockChangeBadge').textContent = '0,00 € (0,00%)';
+            document.getElementById('stockChangeBadge').className = 'stock-change positive';
             return;
         }
 
-        // Aufsteigend sortiert für korrekte Kurshistorien-Berechnung
+        // Chronologisch sortieren (alt nach neu)
         const sortedAsc = [...currentFinanzen].sort((a, b) => new Date(a.datum) - new Date(b.datum));
         const latest = sortedAsc[sortedAsc.length - 1];
-        
-        document.getElementById('finanzGesamt').textContent = Number(latest.gesamt || 0).toFixed(2) + ' €';
+        document.getElementById('stockCurrentPrice').textContent = Number(latest.gesamt || 0).toFixed(2) + ' €';
 
-        if (sortedAsc.length >= 2) {
-            const previous = sortedAsc[sortedAsc.length - 2];
-            const diff = Number(latest.gesamt) - Number(previous.gesamt);
-            const percent = previous.gesamt > 0 ? (diff / Number(previous.gesamt)) * 100 : 0;
-            const sign = diff >= 0 ? '+' : '';
-            const color = diff >= 0 ? '#28a745' : '#dc3545';
-            document.getElementById('finanzVergleich').innerHTML = `<span style="color: ${color}">${sign}${diff.toFixed(2)} € (${sign}${percent.toFixed(2)}%)</span>`;
-        } else {
-            document.getElementById('finanzVergleich').textContent = 'Kein Vortag vorhanden';
-        }
-
-        // Filter für die Tabelle anwenden (Woche, Monat, Jahr, Gesamt)
-        const filterVal = document.getElementById('finanzTimeFilter').value;
+        // Zeitraum-Filter anwenden
         const now = new Date();
-
-        const filteredFinanzenDesc = currentFinanzen.filter(f => {
+        const filteredAsc = sortedAsc.filter(f => {
             if (!f.datum) return false;
             const fDate = new Date(f.datum);
 
-            if (filterVal === 'week') {
-                const startOfWeek = new Date(now);
-                startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
-                startOfWeek.setHours(0,0,0,0);
-                return fDate >= startOfWeek;
+            if (currentFinanzFilter === 'week') {
+                const pastWeek = new Date(now);
+                pastWeek.setDate(now.getDate() - 7);
+                return fDate >= pastWeek;
             }
-            if (filterVal === 'month') {
+            if (currentFinanzFilter === 'month') {
                 return fDate.getMonth() === now.getMonth() && fDate.getFullYear() === now.getFullYear();
             }
-            if (filterVal === 'year') {
+            if (currentFinanzFilter === 'year') {
                 return fDate.getFullYear() === now.getFullYear();
             }
             return true; // 'all'
         });
 
-        if (filteredFinanzenDesc.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6">Keine Einträge für den gewählten Zeitraum.</td></tr>';
-            return;
-        }
+        const displayData = filteredAsc.length > 0 ? filteredAsc : sortedAsc;
 
-        filteredFinanzenDesc.forEach((f) => {
-            const matchingAscIndex = sortedAsc.findIndex(item => item.id === f.id);
+        // Performance-Berechnung für den Zeitraum
+        const startVal = Number(displayData[0].gesamt || 0);
+        const endVal = Number(displayData[displayData.length - 1].gesamt || 0);
+        const diff = endVal - startVal;
+        const percent = startVal > 0 ? (diff / startVal) * 100 : 0;
+        const sign = diff >= 0 ? '+' : '';
+        const isPositive = diff >= 0;
+
+        const badge = document.getElementById('stockChangeBadge');
+        badge.textContent = `${sign}${diff.toFixed(2)} € (${sign}${percent.toFixed(2)}%)`;
+        badge.className = `stock-change ${isPositive ? 'positive' : 'negative'}`;
+
+        // Chart aktualisieren
+        renderStockChart(displayData, isPositive);
+
+        // Tabelle befüllen (neueste oben)
+        const tableDesc = [...displayData].reverse();
+        tableDesc.forEach((f) => {
+            const matchingIndex = sortedAsc.findIndex(item => item.id === f.id);
             let diffHtml = '-';
-            if (matchingAscIndex > 0) {
-                const prevItem = sortedAsc[matchingAscIndex - 1];
-                const diff = Number(f.gesamt) - Number(prevItem.gesamt);
-                const percent = prevItem.gesamt > 0 ? (diff / Number(prevItem.gesamt)) * 100 : 0;
-                const sign = diff >= 0 ? '+' : '';
-                const color = diff >= 0 ? '#28a745' : '#dc3545';
-                diffHtml = `<span style="color: ${color}">${sign}${diff.toFixed(2)} € (${sign}${percent.toFixed(2)}%)</span>`;
+            if (matchingIndex > 0) {
+                const prevItem = sortedAsc[matchingIndex - 1];
+                const dayDiff = Number(f.gesamt) - Number(prevItem.gesamt);
+                const dayPercent = prevItem.gesamt > 0 ? (dayDiff / Number(prevItem.gesamt)) * 100 : 0;
+                const daySign = dayDiff >= 0 ? '+' : '';
+                const color = dayDiff >= 0 ? '#137333' : '#c5221f';
+                diffHtml = `<span style="color: ${color}; font-weight: 600;">${daySign}${dayDiff.toFixed(2)} € (${daySign}${dayPercent.toFixed(2)}%)</span>`;
             }
 
             tbody.innerHTML += `<tr>
@@ -612,6 +642,67 @@
                 <td><b>${Number(f.gesamt || 0).toFixed(2)} €</b></td>
                 <td>${diffHtml}</td>
             </tr>`;
+        });
+    }
+
+    function renderStockChart(dataItems, isPositive) {
+        const ctx = document.getElementById('stockChartCanvas').getContext('2d');
+        if (stockChart) stockChart.destroy();
+
+        const labels = dataItems.map(item => {
+            const d = new Date(item.datum);
+            return d.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
+        });
+        const values = dataItems.map(item => Number(item.gesamt || 0));
+
+        const colorHex = isPositive ? '#107c41' : '#d13438';
+        const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+        gradient.addColorStop(0, isPositive ? 'rgba(16, 124, 65, 0.25)' : 'rgba(209, 52, 56, 0.25)');
+        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+        stockChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Kurs',
+                    data: values,
+                    borderColor: colorHex,
+                    borderWidth: 2.5,
+                    backgroundColor: gradient,
+                    fill: true,
+                    tension: 0.25,
+                    pointRadius: dataItems.length < 20 ? 4 : 0,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: colorHex
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return ' Kurs: ' + context.parsed.y.toFixed(2) + ' €';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: { display: false }
+                    },
+                    y: {
+                        position: 'right',
+                        grid: { color: '#f0f0f0' },
+                        ticks: {
+                            callback: function(val) { return val.toFixed(0) + ' €'; }
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -626,7 +717,7 @@
         const paypal = parseFloat(document.getElementById('paypalAmount').value) || 0;
         const bankkonto = parseFloat(document.getElementById('bankAmount').value) || 0;
         const sparkonto = parseFloat(document.getElementById('sparkontoAmount').value) || 0;
-        const gesamt = paypal + bankkonto + sparkonto; // Gesamtwert bildet den Aktienkurs
+        const gesamt = paypal + bankkonto + sparkonto;
 
         try {
             const { error } = await db

@@ -22,7 +22,7 @@
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
         th, td { text-align: left; padding: 10px; border-bottom: 1px solid #ddd; }
         img.thumb { max-width: 45px; max-height: 45px; border-radius: 4px; cursor: pointer; object-fit: cover; }
-        #status { margin-top: 10px; font-weight: bold; text-align: center; padding: 8px; border-radius: 4px; }
+        #status, #finanzStatus { margin-top: 10px; font-weight: bold; text-align: center; padding: 8px; border-radius: 4px; }
         #app-content { display: none; }
         #login-screen { text-align: center; padding: 50px; background: white; border-radius: 8px; margin-top: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         #login-screen input { max-width: 250px; margin: 10px auto; display: inline-block; }
@@ -32,8 +32,8 @@
         
         /* Header & Nav Styles */
         .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .app-nav { display: flex; gap: 10px; margin-bottom: 20px; }
-        .app-nav button { width: auto; flex: 1; }
+        .app-nav { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .app-nav button { width: auto; flex: 1; min-width: 130px; }
         .section-view { display: none; }
         .section-view.active { display: block; }
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
@@ -61,10 +61,11 @@
         <button type="button" class="btn-small btn-danger" onclick="logout()">Gesperrt mod. verlassen</button>
     </div>
 
-    <!-- Menü zum Umschalten -->
+    <!-- Menü zum Umschalten (3 Reiter) -->
     <div class="app-nav">
-        <button type="button" onclick="switchView('orders')" id="btnViewOrders">Bestellungen & Erfassung</button>
-        <button type="button" onclick="switchView('dashboard')" id="btnViewDashboard" style="background-color: #6c757d;">Erweiterte Statistiken</button>
+        <button type="button" onclick="switchView('orders')" id="btnViewOrders">Bestellungen</button>
+        <button type="button" onclick="switchView('dashboard')" id="btnViewDashboard" style="background-color: #6c757d;">Statistiken</button>
+        <button type="button" onclick="switchView('finanzen')" id="btnViewFinanzen" style="background-color: #6c757d;">Finanzen</button>
     </div>
 
     <!-- ANSICHT 1: BESTELLUNGEN & ERFASSUNG -->
@@ -167,6 +168,60 @@
             </div>
         </div>
     </div>
+
+    <!-- ANSICHT 3: FINANZEN (Tagesabschluss) -->
+    <div id="viewFinanzen" class="section-view">
+        <div class="card">
+            <h2>Tagesabschluss Finanzen eintragen</h2>
+            <form id="finanzForm">
+                <div class="form-group">
+                    <label for="finanzDate">Datum:</label>
+                    <input type="date" id="finanzDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="paypalAmount">PayPal Guthaben (€):</label>
+                    <input type="number" id="paypalAmount" step="0.01" value="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label for="bankAmount">Bankkonto (€):</label>
+                    <input type="number" id="bankAmount" step="0.01" value="0.00" required>
+                </div>
+                <div class="form-group">
+                    <label for="sparkontoAmount">Sparkonto (€):</label>
+                    <input type="number" id="sparkontoAmount" step="0.01" value="0.00" required>
+                </div>
+                <button type="submit" id="submitFinanzBtn" class="btn-edit">Tagesabschluss speichern</button>
+            </form>
+            <div id="finanzStatus"></div>
+        </div>
+
+        <div class="card">
+            <h2>Finanz-Übersicht & Tagesvergleich</h2>
+            <div class="stats-grid">
+                <div class="stat-card">Gesamtvermögen <span id="finanzGesamt">0,00 €</span></div>
+                <div class="stat-card">Veränderung zum Vortag <span id="finanzVergleich">0,00 € (0.00%)</span></div>
+            </div>
+
+            <h3>Historie der Tagesabschlüsse</h3>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>PayPal</th>
+                            <th>Bank</th>
+                            <th>Sparen</th>
+                            <th>Gesamt</th>
+                            <th>Veränderung</th>
+                        </tr>
+                    </thead>
+                    <tbody id="finanzList">
+                        <tr><td colspan="6">Lade Finanzdaten...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div id="editModal" class="modal">
@@ -217,9 +272,11 @@
 
     let currentOrders = [];
     let cachedFiles = [];
+    let currentFinanzen = [];
     let myChart = null;
 
     document.getElementById('orderDate').valueAsDate = new Date();
+    document.getElementById('finanzDate').valueAsDate = new Date();
 
     window.addEventListener('DOMContentLoaded', async () => {
         if (localStorage.getItem('waltbrick_logged_in') === 'true') {
@@ -291,20 +348,31 @@
     window.switchView = function(viewName) {
         const btnOrders = document.getElementById('btnViewOrders');
         const btnDashboard = document.getElementById('btnViewDashboard');
+        const btnFinanzen = document.getElementById('btnViewFinanzen');
+        
         const viewOrders = document.getElementById('viewOrders');
         const viewDashboard = document.getElementById('viewDashboard');
+        const viewFinanzen = document.getElementById('viewFinanzen');
+
+        // Alle zurücksetzen
+        viewOrders.classList.remove('active');
+        viewDashboard.classList.remove('active');
+        viewFinanzen.classList.remove('active');
+        btnOrders.style.backgroundColor = '#6c757d';
+        btnDashboard.style.backgroundColor = '#6c757d';
+        btnFinanzen.style.backgroundColor = '#6c757d';
 
         if (viewName === 'orders') {
             viewOrders.classList.add('active');
-            viewDashboard.classList.remove('active');
             btnOrders.style.backgroundColor = '#007bff';
-            btnDashboard.style.backgroundColor = '#6c757d';
-        } else {
+        } else if (viewName === 'dashboard') {
             viewDashboard.classList.add('active');
-            viewOrders.classList.remove('active');
             btnDashboard.style.backgroundColor = '#007bff';
-            btnOrders.style.backgroundColor = '#6c757d';
             updateDashboardView();
+        } else if (viewName === 'finanzen') {
+            viewFinanzen.classList.add('active');
+            btnFinanzen.style.backgroundColor = '#007bff';
+            renderFinanzTable();
         }
     }
 
@@ -323,33 +391,38 @@
     }
 
     async function loadData() {
+        // Bestellungen laden
         const { data: orders, error: orderErr } = await db.from('bestellungen').select('*').order('datum', { ascending: false });
         const { data: files } = await db.from('belege').select('*');
         
-        if (orderErr) {
-            document.getElementById('orderList').innerHTML = '<tr><td colspan="7" style="color:red;">Fehler beim Laden</td></tr>';
-            return;
+        if (!orderErr) {
+            currentOrders = orders || [];
+            cachedFiles = files || [];
+            
+            let total = 0;
+            let dailyTotals = {};
+
+            currentOrders.forEach(function(order) {
+                const ums = Number(order.umsatz || 0);
+                total += ums;
+                if (order.datum) {
+                    const dayKey = order.datum.split('T')[0];
+                    dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + ums;
+                }
+            });
+
+            document.getElementById('totalRevenue').textContent = total.toFixed(2) + ' €';
+            updateChart(dailyTotals);
+            renderTable(currentOrders);
+            updateDashboardView();
         }
 
-        currentOrders = orders || [];
-        cachedFiles = files || [];
-        
-        let total = 0;
-        let dailyTotals = {};
-
-        currentOrders.forEach(function(order) {
-            const ums = Number(order.umsatz || 0);
-            total += ums;
-            if (order.datum) {
-                const dayKey = order.datum.split('T')[0];
-                dailyTotals[dayKey] = (dailyTotals[dayKey] || 0) + ums;
-            }
-        });
-
-        document.getElementById('totalRevenue').textContent = total.toFixed(2) + ' €';
-        updateChart(dailyTotals);
-        renderTable(currentOrders);
-        updateDashboardView();
+        // Finanzen laden
+        const { data: finanzenData, error: finanzErr } = await db.from('finanzen').select('*').order('datum', { ascending: false });
+        if (!finanzErr) {
+            currentFinanzen = finanzenData || [];
+            renderFinanzTable();
+        }
     }
 
     function renderTable(ordersToRender) {
@@ -461,6 +534,90 @@
         }
     }
 
+    function renderFinanzTable() {
+        const tbody = document.getElementById('finanzList');
+        tbody.innerHTML = '';
+
+        if (currentFinanzen.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6">Keine Finanzdaten eingetragen.</td></tr>';
+            document.getElementById('finanzGesamt').textContent = '0,00 €';
+            document.getElementById('finanzVergleich').textContent = '0,00 € (0.00%)';
+            return;
+        }
+
+        // Sortiere chronologisch aufsteigend für den Vergleich zum Vortag
+        const sortedAsc = [...currentFinanzen].sort((a, b) => new Date(a.datum) - new Date(b.datum));
+        const latest = sortedAsc[sortedAsc.length - 1];
+        
+        document.getElementById('finanzGesamt').textContent = Number(latest.gesamt || 0).toFixed(2) + ' €';
+
+        if (sortedAsc.length >= 2) {
+            const previous = sortedAsc[sortedAsc.length - 2];
+            const diff = Number(latest.gesamt) - Number(previous.gesamt);
+            const percent = previous.gesamt > 0 ? (diff / Number(previous.gesamt)) * 100 : 0;
+            const sign = diff >= 0 ? '+' : '';
+            const color = diff >= 0 ? '#28a745' : '#dc3545';
+            document.getElementById('finanzVergleich').innerHTML = `<span style="color: ${color}">${sign}${diff.toFixed(2)} € (${sign}${percent.toFixed(2)}%)</span>`;
+        } else {
+            document.getElementById('finanzVergleich').textContent = 'Kein Vortag vorhanden';
+        }
+
+        // Für die Tabelle (neueste zuerst)
+        currentFinanzen.forEach((f, index) => {
+            const nextInAsc = sortedAsc.find(item => new Date(item.datum) > new Date(f.datum));
+            // Wir vergleichen mit dem chronologisch vorherigen Eintrag
+            const matchingAscIndex = sortedAsc.findIndex(item => item.id === f.id);
+            let diffHtml = '-';
+            if (matchingAscIndex > 0) {
+                const prevItem = sortedAsc[matchingAscIndex - 1];
+                const diff = Number(f.gesamt) - Number(prevItem.gesamt);
+                const percent = prevItem.gesamt > 0 ? (diff / Number(prevItem.gesamt)) * 100 : 0;
+                const sign = diff >= 0 ? '+' : '';
+                const color = diff >= 0 ? '#28a745' : '#dc3545';
+                diffHtml = `<span style="color: ${color}">${sign}${diff.toFixed(2)} € (${sign}${percent.toFixed(2)}%)</span>`;
+            }
+
+            tbody.innerHTML += `<tr>
+                <td>${f.datum.split('T')[0]}</td>
+                <td>${Number(f.paypal || 0).toFixed(2)} €</td>
+                <td>${Number(f.bankkonto || 0).toFixed(2)} €</td>
+                <td>${Number(f.sparkonto || 0).toFixed(2)} €</td>
+                <td><b>${Number(f.gesamt || 0).toFixed(2)} €</b></td>
+                <td>${diffHtml}</td>
+            </tr>`;
+        });
+    }
+
+    document.getElementById('finanzForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitFinanzBtn');
+        const statusDiv = document.getElementById('finanzStatus');
+        btn.disabled = true;
+        statusDiv.textContent = 'Speichere Finanzdaten...';
+
+        const datum = document.getElementById('finanzDate').value;
+        const paypal = parseFloat(document.getElementById('paypalAmount').value) || 0;
+        const bankkonto = parseFloat(document.getElementById('bankAmount').value) || 0;
+        const sparkonto = parseFloat(document.getElementById('sparkontoAmount').value) || 0;
+        const gesamt = paypal + bankkonto + sparkonto;
+
+        try {
+            const { error } = await db
+                .from('finanzen')
+                .insert([{ datum: datum, paypal: paypal, bankkonto: bankkonto, sparkonto: sparkonto, gesamt: gesamt }]);
+
+            if (error) throw error;
+
+            statusDiv.textContent = 'Tagesabschluss erfolgreich gespeichert!';
+            await loadData();
+            setTimeout(() => { statusDiv.textContent = ''; }, 3000);
+        } catch (error) {
+            statusDiv.textContent = 'Fehler: ' + error.message;
+        } finally {
+            btn.disabled = false;
+        }
+    });
+
     function updateChart(dailyTotals) {
         const sortedDays = Object.keys(dailyTotals).sort();
         const dataValues = sortedDays.map(function(day) { return dailyTotals[day]; });
@@ -546,7 +703,7 @@
         const bestellnummer = document.getElementById('editOrderNumber').value;
         const umsatz = parseFloat(document.getElementById('editAmount').value);
         const plattform = document.getElementById('editPlatform').value;
-        const notizen = document.getElementById('editNotes').value;
+        const notizen = document.getElementById('editNotes'].value;
         const editFileInput = document.getElementById('editFile').files[0];
 
         try {

@@ -25,7 +25,7 @@
         #status, #finanzStatus { margin-top: 10px; font-weight: bold; text-align: center; padding: 8px; border-radius: 4px; }
         #app-content { display: none; }
         #login-screen { text-align: center; padding: 50px; background: white; border-radius: 8px; margin-top: 50px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        #login-screen input { max-width: 250px; margin: 10px auto; display: inline-block; }
+        #login-screen input { max-width: 250px; margin: 10px auto; display: block; }
         .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
         .modal-content { background: white; margin: 10% auto; padding: 20px; border-radius: 8px; max-width: 500px; position: relative; }
         .close-btn { position: absolute; right: 15px; top: 10px; font-size: 24px; cursor: pointer; font-weight: bold; }
@@ -46,10 +46,12 @@
 
 <div id="login-screen">
     <h2>Geschützter Bereich</h2>
-    <p>Bitte gib die gemeinsame PIN ein oder nutze deinen Fingerabdruck:</p>
-    <input type="password" id="pinInput" placeholder="PIN eingeben...">
-    <button type="button" id="unlockBtn" style="max-width: 200px; margin: auto; margin-bottom: 10px;">Entsperren</button>
-    <br>
+    <p>Bitte gib die gemeinsame PIN ein:</p>
+    <!-- Umwandlung in ein echtes Formular für reibungslose Enter-Funktion -->
+    <form id="loginForm" onsubmit="handleLoginSubmit(event)">
+        <input type="password" id="pinInput" placeholder="PIN eingeben..." required autofocus>
+        <button type="submit" style="max-width: 200px; margin: 10px auto; display: block;">Entsperren</button>
+    </form>
     <button type="button" id="bioBtn" class="btn-edit" style="max-width: 200px; margin: auto; display: none;">Mit Fingerabdruck / FaceID</button>
     <p id="pinError" style="color: red; margin-top: 10px;"></p>
 </div>
@@ -284,10 +286,16 @@
             return;
         }
 
-        if (window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
-            const bioBtn = document.getElementById('bioBtn');
-            bioBtn.style.display = 'block';
-            bioBtn.addEventListener('click', handleBiometricLogin);
+        document.getElementById('pinInput').focus();
+
+        try {
+            if (window.PublicKeyCredential && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()) {
+                const bioBtn = document.getElementById('bioBtn');
+                bioBtn.style.display = 'block';
+                bioBtn.addEventListener('click', handleBiometricLogin);
+            }
+        } catch (e) {
+            console.log("Biometrie nicht verfügbar: ", e);
         }
     });
 
@@ -298,12 +306,15 @@
         loadData();
     }
 
-    function checkPin() {
+    function handleLoginSubmit(event) {
+        event.preventDefault();
         const enteredPin = document.getElementById('pinInput').value;
         if (enteredPin === GEHEIME_PIN) {
             grantAccess();
         } else {
             document.getElementById('pinError').textContent = 'Falsche PIN!';
+            document.getElementById('pinInput').value = '';
+            document.getElementById('pinInput').focus();
         }
     }
 
@@ -318,20 +329,8 @@
             });
             if (credential) grantAccess();
         } catch (err) {
-            try {
-                const reg = await navigator.credentials.create({
-                    publicKey: {
-                        challenge: new Uint8Array([1,2,3,4,5,6,7,8]),
-                        rp: { name: "Waltbrick App" },
-                        user: { id: new Uint8Array([1]), name: "admin", displayName: "Admin" },
-                        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-                        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" }
-                    }
-                });
-                if (reg) grantAccess();
-            } catch (innerErr) {
-                document.getElementById('pinError').textContent = 'Biometrie fehlgeschlagen. Bitte PIN nutzen.';
-            }
+            document.getElementById('pinError').textContent = 'Biometrie abgebrochen. Bitte PIN nutzen.';
+            document.getElementById('pinInput').focus();
         }
     }
 
@@ -339,11 +338,6 @@
         localStorage.removeItem('waltbrick_logged_in');
         location.reload();
     }
-
-    document.getElementById('unlockBtn').addEventListener('click', checkPin);
-    document.getElementById('pinInput').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') checkPin();
-    });
 
     window.switchView = function(viewName) {
         const btnOrders = document.getElementById('btnViewOrders');
@@ -354,7 +348,6 @@
         const viewDashboard = document.getElementById('viewDashboard');
         const viewFinanzen = document.getElementById('viewFinanzen');
 
-        // Alle zurücksetzen
         viewOrders.classList.remove('active');
         viewDashboard.classList.remove('active');
         viewFinanzen.classList.remove('active');
@@ -391,7 +384,6 @@
     }
 
     async function loadData() {
-        // Bestellungen laden
         const { data: orders, error: orderErr } = await db.from('bestellungen').select('*').order('datum', { ascending: false });
         const { data: files } = await db.from('belege').select('*');
         
@@ -417,7 +409,6 @@
             updateDashboardView();
         }
 
-        // Finanzen laden
         const { data: finanzenData, error: finanzErr } = await db.from('finanzen').select('*').order('datum', { ascending: false });
         if (!finanzErr) {
             currentFinanzen = finanzenData || [];
@@ -545,7 +536,6 @@
             return;
         }
 
-        // Sortiere chronologisch aufsteigend für den Vergleich zum Vortag
         const sortedAsc = [...currentFinanzen].sort((a, b) => new Date(a.datum) - new Date(b.datum));
         const latest = sortedAsc[sortedAsc.length - 1];
         
@@ -562,10 +552,7 @@
             document.getElementById('finanzVergleich').textContent = 'Kein Vortag vorhanden';
         }
 
-        // Für die Tabelle (neueste zuerst)
         currentFinanzen.forEach((f, index) => {
-            const nextInAsc = sortedAsc.find(item => new Date(item.datum) > new Date(f.datum));
-            // Wir vergleichen mit dem chronologisch vorherigen Eintrag
             const matchingAscIndex = sortedAsc.findIndex(item => item.id === f.id);
             let diffHtml = '-';
             if (matchingAscIndex > 0) {
@@ -703,7 +690,7 @@
         const bestellnummer = document.getElementById('editOrderNumber').value;
         const umsatz = parseFloat(document.getElementById('editAmount').value);
         const plattform = document.getElementById('editPlatform').value;
-        const notizen = document.getElementById('editNotes'].value;
+        const notizen = document.getElementById('editNotes').value;
         const editFileInput = document.getElementById('editFile').files[0];
 
         try {

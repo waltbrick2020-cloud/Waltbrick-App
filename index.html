@@ -47,7 +47,6 @@
 <div id="login-screen">
     <h2>Geschützter Bereich</h2>
     <p>Bitte gib die gemeinsame PIN ein:</p>
-    <!-- Umwandlung in ein echtes Formular für reibungslose Enter-Funktion -->
     <form id="loginForm" onsubmit="handleLoginSubmit(event)">
         <input type="password" id="pinInput" placeholder="PIN eingeben..." required autofocus>
         <button type="submit" style="max-width: 200px; margin: 10px auto; display: block;">Entsperren</button>
@@ -591,7 +590,13 @@
         try {
             const { error } = await db
                 .from('finanzen')
-                .insert([{ datum: datum, paypal: paypal, bankkonto: bankkonto, sparkonto: sparkonto, gesamt: gesamt }]);
+                .insert({ 
+                    datum: datum, 
+                    paypal: paypal, 
+                    bankkonto: bankkonto, 
+                    sparkonto: sparkonto, 
+                    gesamt: gesamt 
+                });
 
             if (error) throw error;
 

@@ -33,7 +33,7 @@
         /* Header & Nav Styles */
         .app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .app-nav { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .app-nav button { width: auto; flex: 1; min-width: 130px; }
+        .app-nav button { width: auto; flex: 1; min-width: 120px; }
         .section-view { display: none; }
         .section-view.active { display: block; }
         .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
@@ -170,10 +170,10 @@
         </div>
     </div>
 
-    <!-- ANSICHT 3: FINANZEN (Tagesabschluss) -->
+    <!-- ANSICHT 3: FINANZEN & AKTIEN-TAGESABSCHLUSS -->
     <div id="viewFinanzen" class="section-view">
         <div class="card">
-            <h2>Tagesabschluss Finanzen eintragen</h2>
+            <h2>Tagesabschluss eintragen</h2>
             <form id="finanzForm">
                 <div class="form-group">
                     <label for="finanzDate">Datum:</label>
@@ -197,13 +197,24 @@
         </div>
 
         <div class="card">
-            <h2>Finanz-Übersicht & Tagesvergleich</h2>
-            <div class="stats-grid">
-                <div class="stat-card">Gesamtvermögen <span id="finanzGesamt">0,00 €</span></div>
-                <div class="stat-card">Veränderung zum Vortag <span id="finanzVergleich">0,00 € (0.00%)</span></div>
+            <h2>Finanz- & Aktienkurs-Historie</h2>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;">
+                <div class="stats-grid" style="margin-bottom: 0; flex: 1; min-width: 250px;">
+                    <div class="stat-card" style="margin-bottom:0;">Aktueller Kurs (Gesamt) <span id="finanzGesamt">0,00 €</span></div>
+                    <div class="stat-card" style="margin-bottom:0;">Tagesänderung <span id="finanzVergleich">0,00 € (0.00%)</span></div>
+                </div>
+                <div class="form-group" style="max-width: 200px; margin-bottom: 0;">
+                    <label for="finanzTimeFilter">Kurs-Filter:</label>
+                    <select id="finanzTimeFilter" onchange="renderFinanzTable()">
+                        <option value="week">Diese Woche</option>
+                        <option value="month" selected>Dieser Monat</option>
+                        <option value="year">Dieses Jahr</option>
+                        <option value="all">Gesamt</option>
+                    </select>
+                </div>
             </div>
 
-            <h3>Historie der Tagesabschlüsse</h3>
             <div style="overflow-x:auto;">
                 <table>
                     <thead>
@@ -212,8 +223,8 @@
                             <th>PayPal</th>
                             <th>Bank</th>
                             <th>Sparen</th>
-                            <th>Gesamt</th>
-                            <th>Veränderung</th>
+                            <th>Kurs (Gesamt)</th>
+                            <th>Änderung zum Vortag</th>
                         </tr>
                     </thead>
                     <tbody id="finanzList">
@@ -350,6 +361,7 @@
         viewOrders.classList.remove('active');
         viewDashboard.classList.remove('active');
         viewFinanzen.classList.remove('active');
+        
         btnOrders.style.backgroundColor = '#6c757d';
         btnDashboard.style.backgroundColor = '#6c757d';
         btnFinanzen.style.backgroundColor = '#6c757d';
@@ -535,6 +547,7 @@
             return;
         }
 
+        // Aufsteigend sortiert für korrekte Kurshistorien-Berechnung
         const sortedAsc = [...currentFinanzen].sort((a, b) => new Date(a.datum) - new Date(b.datum));
         const latest = sortedAsc[sortedAsc.length - 1];
         
@@ -551,7 +564,35 @@
             document.getElementById('finanzVergleich').textContent = 'Kein Vortag vorhanden';
         }
 
-        currentFinanzen.forEach((f, index) => {
+        // Filter für die Tabelle anwenden (Woche, Monat, Jahr, Gesamt)
+        const filterVal = document.getElementById('finanzTimeFilter').value;
+        const now = new Date();
+
+        const filteredFinanzenDesc = currentFinanzen.filter(f => {
+            if (!f.datum) return false;
+            const fDate = new Date(f.datum);
+
+            if (filterVal === 'week') {
+                const startOfWeek = new Date(now);
+                startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+                startOfWeek.setHours(0,0,0,0);
+                return fDate >= startOfWeek;
+            }
+            if (filterVal === 'month') {
+                return fDate.getMonth() === now.getMonth() && fDate.getFullYear() === now.getFullYear();
+            }
+            if (filterVal === 'year') {
+                return fDate.getFullYear() === now.getFullYear();
+            }
+            return true; // 'all'
+        });
+
+        if (filteredFinanzenDesc.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6">Keine Einträge für den gewählten Zeitraum.</td></tr>';
+            return;
+        }
+
+        filteredFinanzenDesc.forEach((f) => {
             const matchingAscIndex = sortedAsc.findIndex(item => item.id === f.id);
             let diffHtml = '-';
             if (matchingAscIndex > 0) {
@@ -579,28 +620,28 @@
         const btn = document.getElementById('submitFinanzBtn');
         const statusDiv = document.getElementById('finanzStatus');
         btn.disabled = true;
-        statusDiv.textContent = 'Speichere Finanzdaten...';
+        statusDiv.textContent = 'Speichere Finanzkurs...';
 
         const datum = document.getElementById('finanzDate').value;
         const paypal = parseFloat(document.getElementById('paypalAmount').value) || 0;
         const bankkonto = parseFloat(document.getElementById('bankAmount').value) || 0;
         const sparkonto = parseFloat(document.getElementById('sparkontoAmount').value) || 0;
-        const gesamt = paypal + bankkonto + sparkonto;
+        const gesamt = paypal + bankkonto + sparkonto; // Gesamtwert bildet den Aktienkurs
 
         try {
             const { error } = await db
                 .from('finanzen')
-                .insert({ 
+                .upsert({ 
                     datum: datum, 
                     paypal: paypal, 
                     bankkonto: bankkonto, 
                     sparkonto: sparkonto, 
                     gesamt: gesamt 
-                });
+                }, { onConflict: 'datum' });
 
             if (error) throw error;
 
-            statusDiv.textContent = 'Tagesabschluss erfolgreich gespeichert!';
+            statusDiv.textContent = 'Tageskurs erfolgreich gespeichert!';
             await loadData();
             setTimeout(() => { statusDiv.textContent = ''; }, 3000);
         } catch (error) {
